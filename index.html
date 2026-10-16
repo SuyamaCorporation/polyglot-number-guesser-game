@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polyglot Number Spelling Guesser Game</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; }
+  .rtl { direction: rtl; }
+  .choice-btn:hover { transform: translateY(-2px); }
+  .choice-btn { transition: all 0.15s ease; }
+  .correct-flash { animation: flash-green 0.5s ease; }
+  .wrong-flash { animation: flash-red 0.5s ease; }
+  @keyframes flash-green { 0%,100%{background-color:initial;} 50%{background-color:#16a34a;} }
+  @keyframes flash-red { 0%,100%{background-color:initial;} 50%{background-color:#dc2626;} }
+  .bar { transition: width 0.5s ease; }
+</style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+<div class="max-w-2xl mx-auto px-4 py-8">
+  <header class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-indigo-400 mb-1">Polyglot Number Guesser</h1>
+    <p class="text-gray-400 text-sm">Test your knowledge of number words in 12 languages</p>
+  </header>
+
+  <!-- Score Bar -->
+  <div class="bg-gray-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4 justify-center text-center">
+    <div>
+      <div class="text-2xl font-bold text-yellow-400" id="score">0</div>
+      <div class="text-xs text-gray-400">Score</div>
+    </div>
+    <div>
+      <div class="text-2xl font-bold text-green-400" id="streak">0</div>
+      <div class="text-xs text-gray-400">Streak</div>
+    </div>
+    <div>
+      <div class="text-2xl font-bold text-blue-400" id="best-streak">0</div>
+      <div class="text-xs text-gray-400">Best Streak</div>
+    </div>
+    <div>
+      <div class="text-2xl font-bold text-purple-400" id="accuracy">—</div>
+      <div class="text-xs text-gray-400">Accuracy</div>
+    </div>
+    <div>
+      <div class="text-2xl font-bold text-red-400" id="questions-done">0</div>
+      <div class="text-xs text-gray-400">Questions</div>
+    </div>
+  </div>
+
+  <!-- Mode Selector -->
+  <div class="mb-6">
+    <div class="flex bg-gray-800 rounded-xl p-1 gap-1" role="tablist" aria-label="Game modes">
+      <button role="tab" aria-selected="true" class="mode-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold bg-indigo-600 text-white" data-mode="1" onclick="setMode(1)">Mode 1: Guess Language</button>
+      <button role="tab" aria-selected="false" class="mode-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold text-gray-400 hover:text-white" data-mode="2" onclick="setMode(2)">Mode 2: Type the Word</button>
+      <button role="tab" aria-selected="false" class="mode-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold text-gray-400 hover:text-white" data-mode="3" onclick="setMode(3)">Mode 3: Guess the Number</button>
+    </div>
+  </div>
+
+  <!-- Game Area -->
+  <div class="bg-gray-800 rounded-2xl p-6 mb-6" id="game-area">
+    <div id="mode-description" class="text-center text-gray-400 text-sm mb-4"></div>
+
+    <!-- The prompt -->
+    <div class="text-center mb-6">
+      <div id="number-display" class="text-5xl font-bold text-white mb-2"></div>
+      <div id="lang-display" class="text-xl text-indigo-300 mb-1"></div>
+      <div id="word-display" class="text-6xl font-bold text-yellow-300 mb-2"></div>
+    </div>
+
+    <!-- Mode 1: 4-choice buttons -->
+    <div id="choices-area" class="grid grid-cols-2 gap-3" role="group" aria-label="Answer choices"></div>
+
+    <!-- Mode 2: Type input -->
+    <div id="type-area" class="hidden">
+      <input type="text" id="type-input"
+        class="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-xl text-center focus:outline-none focus:border-indigo-500 text-white"
+        placeholder="Type the number word..." aria-label="Type the number word"
+        autocomplete="off" spellcheck="false">
+      <button onclick="submitTyped()"
+        class="mt-3 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors"
+        aria-label="Submit answer">Submit</button>
+      <div id="type-hint" class="mt-2 text-center text-sm text-gray-400"></div>
+    </div>
+
+    <!-- Mode 3: Number choices -->
+    <div id="num-choices-area" class="hidden grid grid-cols-4 gap-2" role="group" aria-label="Number choices"></div>
+
+    <!-- Feedback -->
+    <div id="feedback" class="mt-4 text-center text-lg font-semibold hidden"></div>
+  </div>
+
+  <!-- Next Button -->
+  <div class="text-center mb-6">
+    <button id="next-btn" onclick="nextQuestion()"
+      class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-10 rounded-xl transition-colors hidden"
+      aria-label="Next question">Next →</button>
+  </div>
+
+  <!-- Language Accuracy Panel -->
+  <div class="bg-gray-800 rounded-2xl p-6 mb-6">
+    <h2 class="text-lg font-bold text-gray-300 mb-4">Language Accuracy</h2>
+    <div id="lang-stats" class="space-y-2"></div>
+  </div>
+
+  <!-- Reference Table -->
+  <details class="bg-gray-800 rounded-2xl p-6">
+    <summary class="cursor-pointer font-bold text-gray-300 hover:text-white">Number Reference Table</summary>
+    <div id="reference-table" class="mt-4 overflow-x-auto"></div>
+  </details>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code:'en', name:'English', dir:'ltr' },
+  { code:'fr', name:'French', dir:'ltr' },
+  { code:'de', name:'German', dir:'ltr' },
+  { code:'es', name:'Spanish', dir:'ltr' },
+  { code:'it', name:'Italian', dir:'ltr' },
+  { code:'pt', name:'Portuguese', dir:'ltr' },
+  { code:'ja', name:'Japanese', dir:'ltr' },
+  { code:'zh', name:'Chinese', dir:'ltr' },
+  { code:'ru', name:'Russian', dir:'ltr' },
+  { code:'ar', name:'Arabic', dir:'rtl' },
+  { code:'hi', name:'Hindi', dir:'ltr' },
+  { code:'sw', name:'Swahili', dir:'ltr' },
+];
+
+const NUMBERS = {
+  en: {1:'one',2:'two',3:'three',4:'four',5:'five',6:'six',7:'seven',8:'eight',9:'nine',10:'ten',
+       11:'eleven',12:'twelve',13:'thirteen',14:'fourteen',15:'fifteen',16:'sixteen',17:'seventeen',18:'eighteen',19:'nineteen',20:'twenty',
+       30:'thirty',40:'forty',50:'fifty',60:'sixty',70:'seventy',80:'eighty',90:'ninety',100:'one hundred'},
+  fr: {1:'un',2:'deux',3:'trois',4:'quatre',5:'cinq',6:'six',7:'sept',8:'huit',9:'neuf',10:'dix',
+       11:'onze',12:'douze',13:'treize',14:'quatorze',15:'quinze',16:'seize',17:'dix-sept',18:'dix-huit',19:'dix-neuf',20:'vingt',
+       30:'trente',40:'quarante',50:'cinquante',60:'soixante',70:'soixante-dix',80:'quatre-vingts',90:'quatre-vingt-dix',100:'cent'},
+  de: {1:'ein',2:'zwei',3:'drei',4:'vier',5:'fünf',6:'sechs',7:'sieben',8:'acht',9:'neun',10:'zehn',
+       11:'elf',12:'zwölf',13:'dreizehn',14:'vierzehn',15:'fünfzehn',16:'sechzehn',17:'siebzehn',18:'achtzehn',19:'neunzehn',20:'zwanzig',
+       30:'dreißig',40:'vierzig',50:'fünfzig',60:'sechzig',70:'siebzig',80:'achtzig',90:'neunzig',100:'hundert'},
+  es: {1:'uno',2:'dos',3:'tres',4:'cuatro',5:'cinco',6:'seis',7:'siete',8:'ocho',9:'nueve',10:'diez',
+       11:'once',12:'doce',13:'trece',14:'catorce',15:'quince',16:'dieciséis',17:'diecisiete',18:'dieciocho',19:'diecinueve',20:'veinte',
+       30:'treinta',40:'cuarenta',50:'cincuenta',60:'sesenta',70:'setenta',80:'ochenta',90:'noventa',100:'cien'},
+  it: {1:'uno',2:'due',3:'tre',4:'quattro',5:'cinque',6:'sei',7:'sette',8:'otto',9:'nove',10:'dieci',
+       11:'undici',12:'dodici',13:'tredici',14:'quattordici',15:'quindici',16:'sedici',17:'diciassette',18:'diciotto',19:'diciannove',20:'venti',
+       30:'trenta',40:'quaranta',50:'cinquanta',60:'sessanta',70:'settanta',80:'ottanta',90:'novanta',100:'cento'},
+  pt: {1:'um',2:'dois',3:'três',4:'quatro',5:'cinco',6:'seis',7:'sete',8:'oito',9:'nove',10:'dez',
+       11:'onze',12:'doze',13:'treze',14:'catorze',15:'quinze',16:'dezasseis',17:'dezassete',18:'dezoito',19:'dezanove',20:'vinte',
+       30:'trinta',40:'quarenta',50:'cinquenta',60:'sessenta',70:'setenta',80:'oitenta',90:'noventa',100:'cem'},
+  ja: {1:'一 (ichi)',2:'二 (ni)',3:'三 (san)',4:'四 (shi)',5:'五 (go)',6:'六 (roku)',7:'七 (shichi)',8:'八 (hachi)',9:'九 (ku)',10:'十 (juu)',
+       11:'十一 (juu-ichi)',12:'十二 (juu-ni)',13:'十三 (juu-san)',14:'十四 (juu-shi)',15:'十五 (juu-go)',16:'十六 (juu-roku)',17:'十七 (juu-shichi)',18:'十八 (juu-hachi)',19:'十九 (juu-ku)',20:'二十 (nijuu)',
+       30:'三十 (sanjuu)',40:'四十 (yonjuu)',50:'五十 (gojuu)',60:'六十 (rokujuu)',70:'七十 (nanajuu)',80:'八十 (hachijuu)',90:'九十 (kyuujuu)',100:'百 (hyaku)'},
+  zh: {1:'一 (yī)',2:'二 (èr)',3:'三 (sān)',4:'四 (sì)',5:'五 (wǔ)',6:'六 (liù)',7:'七 (qī)',8:'八 (bā)',9:'九 (jiǔ)',10:'十 (shí)',
+       11:'十一 (shíyī)',12:'十二 (shíèr)',13:'十三 (shísān)',14:'十四 (shísì)',15:'十五 (shíwǔ)',16:'十六 (shíliù)',17:'十七 (shíqī)',18:'十八 (shíbā)',19:'十九 (shíjiǔ)',20:'二十 (èrshí)',
+       30:'三十 (sānshí)',40:'四十 (sìshí)',50:'五十 (wǔshí)',60:'六十 (liùshí)',70:'七十 (qīshí)',80:'八十 (bāshí)',90:'九十 (jiǔshí)',100:'一百 (yībǎi)'},
+  ru: {1:'один',2:'два',3:'три',4:'четыре',5:'пять',6:'шесть',7:'семь',8:'восемь',9:'девять',10:'десять',
+       11:'одиннадцать',12:'двенадцать',13:'тринадцать',14:'четырнадцать',15:'пятнадцать',16:'шестнадцать',17:'семнадцать',18:'восемнадцать',19:'девятнадцать',20:'двадцать',
+       30:'тридцать',40:'сорок',50:'пятьдесят',60:'шестьдесят',70:'семьдесят',80:'восемьдесят',90:'девяносто',100:'сто'},
+  ar: {1:'واحد',2:'اثنان',3:'ثلاثة',4:'أربعة',5:'خمسة',6:'ستة',7:'سبعة',8:'ثمانية',9:'تسعة',10:'عشرة',
+       11:'أحد عشر',12:'اثنا عشر',13:'ثلاثة عشر',14:'أربعة عشر',15:'خمسة عشر',16:'ستة عشر',17:'سبعة عشر',18:'ثمانية عشر',19:'تسعة عشر',20:'عشرون',
+       30:'ثلاثون',40:'أربعون',50:'خمسون',60:'ستون',70:'سبعون',80:'ثمانون',90:'تسعون',100:'مئة'},
+  hi: {1:'एक',2:'दो',3:'तीन',4:'चार',5:'पाँच',6:'छह',7:'सात',8:'आठ',9:'नौ',10:'दस',
+       11:'ग्यारह',12:'बारह',13:'तेरह',14:'चौदह',15:'पंद्रह',16:'सोलह',17:'सत्रह',18:'अठारह',19:'उन्नीस',20:'बीस',
+       30:'तीस',40:'चालीस',50:'पचास',60:'साठ',70:'सत्तर',80:'अस्सी',90:'नब्बे',100:'सौ'},
+  sw: {1:'moja',2:'mbili',3:'tatu',4:'nne',5:'tano',6:'sita',7:'saba',8:'nane',9:'tisa',10:'kumi',
+       11:'kumi na moja',12:'kumi na mbili',13:'kumi na tatu',14:'kumi na nne',15:'kumi na tano',16:'kumi na sita',17:'kumi na saba',18:'kumi na nane',19:'kumi na tisa',20:'ishirini',
+       30:'thelathini',40:'arobaini',50:'hamsini',60:'sitini',70:'sabini',80:'themanini',90:'tisini',100:'mia moja'},
+};
+
+const NUMBER_KEYS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,30,40,50,60,70,80,90,100];
+
+// ─── STATE ──────────────────────────────────────────────────────────
+let state = {
+  mode: 1,
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  total: 0,
+  correct: 0,
+  langStats: {}, // {code: {correct:0, total:0}}
+  answered: false,
+  current: null,
+};
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('polyglot_state') || '{}');
+    if (s.score !== undefined) Object.assign(state, s);
+  } catch(e) {}
+}
+
+function saveState() {
+  localStorage.setItem('polyglot_state', JSON.stringify(state));
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────
+loadState();
+LANGUAGES.forEach(l => {
+  if (!state.langStats[l.code]) state.langStats[l.code] = {correct:0, total:0};
+});
+updateScoreUI();
+buildReference();
+renderLangStats();
+generateQuestion();
+
+// ─── MODE ────────────────────────────────────────────────────────────
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    const active = parseInt(b.dataset.mode) === m;
+    b.classList.toggle('bg-indigo-600', active);
+    b.classList.toggle('text-white', active);
+    b.classList.toggle('text-gray-400', !active);
+    b.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  generateQuestion();
+}
+
+// ─── QUESTION GENERATION ────────────────────────────────────────────
+function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generateQuestion() {
+  state.answered = false;
+  hideFeedback();
+  document.getElementById('next-btn').classList.add('hidden');
+
+  const langObj = randItem(LANGUAGES);
+  const num = randItem(NUMBER_KEYS);
+  const word = NUMBERS[langObj.code][num];
+  state.current = { langObj, num, word };
+
+  // Hide all areas
+  document.getElementById('choices-area').classList.add('hidden');
+  document.getElementById('type-area').classList.add('hidden');
+  document.getElementById('num-choices-area').classList.add('hidden');
+  document.getElementById('num-choices-area').classList.remove('grid');
+
+  const nd = document.getElementById('number-display');
+  const ld = document.getElementById('lang-display');
+  const wd = document.getElementById('word-display');
+
+  if (state.mode === 1) {
+    // Show word → guess language
+    document.getElementById('mode-description').textContent = 'Which language is this number word from?';
+    nd.textContent = num;
+    ld.textContent = '';
+    const dir = langObj.dir === 'rtl' ? ' rtl' : '';
+    wd.className = 'text-6xl font-bold text-yellow-300 mb-2' + dir;
+    wd.textContent = word;
+    renderChoices(langObj);
+    document.getElementById('choices-area').classList.remove('hidden');
+
+  } else if (state.mode === 2) {
+    // Show number + language → type the word
+    document.getElementById('mode-description').textContent = 'Type the number word in the shown language:';
+    nd.textContent = num;
+    ld.textContent = `in ${langObj.name}`;
+    wd.textContent = '';
+    document.getElementById('type-input').value = '';
+    document.getElementById('type-hint').textContent = '';
+    document.getElementById('type-area').classList.remove('hidden');
+    setTimeout(() => document.getElementById('type-input').focus(), 50);
+
+  } else {
+    // Show word → guess numeric value
+    document.getElementById('mode-description').textContent = 'What number does this word represent?';
+    nd.textContent = '';
+    ld.textContent = `(${langObj.name})`;
+    const dir = langObj.dir === 'rtl' ? ' rtl' : '';
+    wd.className = 'text-6xl font-bold text-yellow-300 mb-2' + dir;
+    wd.textContent = word;
+    renderNumChoices(num);
+    document.getElementById('num-choices-area').classList.remove('hidden');
+    document.getElementById('num-choices-area').classList.add('grid');
+  }
+}
+
+function renderChoices(correctLang) {
+  const wrong = LANGUAGES.filter(l => l.code !== correctLang.code);
+  const shuffled = shuffle(wrong).slice(0, 3);
+  const all = shuffle([correctLang, ...shuffled]);
+  const area = document.getElementById('choices-area');
+  area.innerHTML = '';
+  all.forEach(lang => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-xl py-4 px-3 text-white font-semibold text-sm';
+    btn.textContent = lang.name;
+    btn.setAttribute('aria-label', `Answer: ${lang.name}`);
+    btn.onclick = () => handleChoice(lang.code === correctLang.code, btn, null, lang.name);
+    area.appendChild(btn);
+  });
+}
+
+function renderNumChoices(correctNum) {
+  const pool = NUMBER_KEYS.filter(n => n !== correctNum);
+  const wrong = shuffle(pool).slice(0, 3);
+  const all = shuffle([correctNum, ...wrong]);
+  const area = document.getElementById('num-choices-area');
+  area.innerHTML = '';
+  all.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-xl py-3 px-2 text-white font-bold text-lg';
+    btn.textContent = n;
+    btn.setAttribute('aria-label', `Answer: ${n}`);
+    btn.onclick = () => handleChoice(n === correctNum, btn, null, String(n));
+    area.appendChild(btn);
+  });
+}
+
+function handleChoice(isCorrect, btn, siblingArea, label) {
+  if (state.answered) return;
+  state.answered = true;
+  const { langObj, num, word } = state.current;
+
+  // Mark button
+  if (isCorrect) {
+    btn.classList.add('bg-green-700', 'border-green-500');
+    btn.classList.remove('bg-gray-700');
+  } else {
+    btn.classList.add('bg-red-700', 'border-red-500');
+    btn.classList.remove('bg-gray-700');
+    // Highlight correct
+    highlightCorrect(langObj, num);
+  }
+
+  recordResult(isCorrect, langObj.code);
+}
+
+function highlightCorrect(langObj, num) {
+  // For mode 1 highlight correct lang button
+  if (state.mode === 1) {
+    document.querySelectorAll('#choices-area button').forEach(b => {
+      if (b.textContent === langObj.name) {
+        b.classList.add('bg-green-700', 'border-green-500');
+        b.classList.remove('bg-gray-700');
+      }
+    });
+  }
+  if (state.mode === 3) {
+    document.querySelectorAll('#num-choices-area button').forEach(b => {
+      if (parseInt(b.textContent) === num) {
+        b.classList.add('bg-green-700', 'border-green-500');
+        b.classList.remove('bg-gray-700');
+      }
+    });
+  }
+}
+
+function submitTyped() {
+  if (state.answered) return;
+  const { langObj, num, word } = state.current;
+  const input = document.getElementById('type-input').value.trim().toLowerCase();
+  const correct = word.toLowerCase();
+  const isCorrect = input === correct || normalizeWord(input) === normalizeWord(correct);
+  state.answered = true;
+
+  const inp = document.getElementById('type-input');
+  if (isCorrect) {
+    inp.classList.add('border-green-500', 'bg-green-900');
+  } else {
+    inp.classList.add('border-red-500', 'bg-red-900');
+    document.getElementById('type-hint').textContent = `Correct: ${word}`;
+  }
+  recordResult(isCorrect, langObj.code);
+}
+
+function normalizeWord(w) {
+  return w.replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+function recordResult(isCorrect, langCode) {
+  state.total++;
+  state.langStats[langCode].total++;
+  if (isCorrect) {
+    state.score += 10 + state.streak * 2;
+    state.streak++;
+    state.correct++;
+    state.langStats[langCode].correct++;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    showFeedback(true, `+${10 + (state.streak-1)*2} pts${state.streak>1?' 🔥':''}`);
+  } else {
+    state.streak = 0;
+    const { langObj, num, word } = state.current;
+    showFeedback(false, `Correct answer: "${word}" (${langObj.name}, ${num})`);
+  }
+  updateScoreUI();
+  renderLangStats();
+  saveState();
+  document.getElementById('next-btn').classList.remove('hidden');
+}
+
+function showFeedback(correct, msg) {
+  const el = document.getElementById('feedback');
+  el.className = 'mt-4 text-center text-lg font-semibold ' + (correct ? 'text-green-400' : 'text-red-400');
+  el.textContent = correct ? '✓ Correct! ' + msg : '✗ Wrong! ' + msg;
+  el.classList.remove('hidden');
+}
+
+function hideFeedback() {
+  document.getElementById('feedback').classList.add('hidden');
+}
+
+function nextQuestion() {
+  document.getElementById('type-input').classList.remove('border-green-500','bg-green-900','border-red-500','bg-red-900');
+  generateQuestion();
+}
+
+function updateScoreUI() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('streak').textContent = state.streak;
+  document.getElementById('best-streak').textContent = state.bestStreak;
+  document.getElementById('accuracy').textContent = state.total > 0
+    ? Math.round(state.correct / state.total * 100) + '%' : '—';
+  document.getElementById('questions-done').textContent = state.total;
+}
+
+function renderLangStats() {
+  const area = document.getElementById('lang-stats');
+  area.innerHTML = '';
+  LANGUAGES.forEach(lang => {
+    const s = state.langStats[lang.code] || {correct:0, total:0};
+    const pct = s.total > 0 ? Math.round(s.correct / s.total * 100) : null;
+    const color = pct === null ? 'bg-gray-600' : pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 text-sm';
+    row.innerHTML = `
+      <span class="w-24 text-gray-300 shrink-0">${lang.name}</span>
+      <div class="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
+        <div class="bar h-3 rounded-full ${color}" style="width:${pct ?? 0}%" role="progressbar" aria-valuenow="${pct ?? 0}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <span class="w-16 text-right text-gray-400">${pct !== null ? pct+'%' : '—'} (${s.correct}/${s.total})</span>
+    `;
+    area.appendChild(row);
+  });
+}
+
+function buildReference() {
+  const table = document.getElementById('reference-table');
+  const nums = [1,2,3,4,5,6,7,8,9,10,20,30,50,100];
+  let html = '<table class="w-full text-xs border-collapse"><thead><tr class="text-gray-400">';
+  html += '<th class="text-left p-1 border border-gray-700">Lang</th>';
+  nums.forEach(n => html += `<th class="p-1 border border-gray-700 text-center">${n}</th>`);
+  html += '</tr></thead><tbody>';
+  LANGUAGES.forEach(lang => {
+    html += `<tr class="hover:bg-gray-700"><td class="p-1 border border-gray-700 font-semibold text-indigo-300">${lang.name}</td>`;
+    nums.forEach(n => {
+      const w = NUMBERS[lang.code][n] || '—';
+      const dir = lang.dir === 'rtl' ? ' dir="rtl"' : '';
+      html += `<td class="p-1 border border-gray-700 text-center text-yellow-200"${dir}>${w}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  table.innerHTML = html;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+// Enter key for mode 2
+document.getElementById('type-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitTyped();
+});
+// Space/Enter for next
+document.addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && !state.answered === false) {
+    const nb = document.getElementById('next-btn');
+    if (!nb.classList.contains('hidden') && document.activeElement !== document.getElementById('type-input')) {
+      nextQuestion();
+    }
+  }
+});
+</script>
+</body>
+</html>
